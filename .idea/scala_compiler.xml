@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ScalaCompilerConfiguration">
+    <option name="separateProdTestSources" value="true" />
+    <profile name="sbt 1" modules="verba-online,verba-online.cli.cliJVM,verba-online.cli.cliJVM.main,verba-online.cli.cliJVM.test,verba-online.cli.cliNative,verba-online.core.coreJVM,verba-online.core.coreJVM.main,verba-online.core.coreJVM.test,verba-online.core.coreJVM~1,verba-online.core.coreJVM~1.main,verba-online.core.coreJVM~1.test,verba-online.core.coreNative,verba-online.core.coreNative~1,verba-online.http-server.httpServerJVM,verba-online.http-server.httpServerJVM.main,verba-online.http-server.httpServerJVM.test,verba-online.http-server.httpServerNative,verba-online.main,verba-online.test,verba-online_4820,verba-online_4820.main,verba-online_4820.test" />
+    <profile name="sbt 2" modules="verba-online.cli.cliNative.main,verba-online.cli.cliNative.test,verba-online.core.coreNative.main,verba-online.core.coreNative.test,verba-online.core.coreNative~1.main,verba-online.core.coreNative~1.test,verba-online.http-server.httpServerNative.main,verba-online.http-server.httpServerNative.test">
+      <plugins>
+        <plugin path="$USER_HOME$/Library/Caches/Coursier/v1/https/repo1.maven.org/maven2/org/scala-native/nscplugin_3.3.7/0.4.17/nscplugin_3.3.7-0.4.17.jar" />
+      </plugins>
+    </profile>
+  </component>
+</project>
