@@ -72,6 +72,10 @@ lazy val httpServer = crossProject(JVMPlatform, NativePlatform)
     },
     libraryDependencies ++= Seq(
       "org.http4s" %%% "http4s-ember-server" % http4sVersion,
-      "org.http4s" %%% "http4s-dsl" % http4sVersion
+      "org.http4s" %%% "http4s-dsl" % http4sVersion,
+      "org.scalameta" %% "munit" % "1.2.1" % Test
     )
+  )
+  .jvmSettings(
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.5.20"
   )

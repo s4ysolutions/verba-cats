@@ -8,82 +8,64 @@ import scala.annotation.tailrec
 
 final case class ServerConfig(
     host: Ipv4Address,
-    port: Port
+    port: Port,
+    secret: String
 )
 
 object ServerConfig {
   private type ValidationResult[A] = ValidatedNec[String, A]
 
-  private val defaultHost = "0.0.0.0"
-  private val defaultPort = 8080
-
   def fromArgs(args: List[String]): Either[String, ServerConfig] = {
-    val (hostOpt, portOpt, parseErrors) = parseArgs(args, None, None, List.empty)
+    val result = parseArgs(
+      args,
+      Ipv4Address.fromBytes(0, 0, 0, 0).validNec,
+      Port.fromInt(8080).get.validNec,
+      "Secret is required".invalidNec,
+      ().validNec
+    )
 
-    val hostStr = hostOpt.getOrElse(defaultHost)
-    val portInt = portOpt.getOrElse(defaultPort)
-
-    val vHost: ValidationResult[Ipv4Address] =
-      Ipv4Address.fromString(hostStr) match {
-        case Some(host) => host.validNec
-        case None => s"Invalid IPv4 address: $hostStr".invalidNec
-      }
-
-    val vPort: ValidationResult[Port] =
-      Port.fromInt(portInt) match {
-        case Some(port) => port.validNec
-        case None => s"Invalid port: $portInt (must be 1-65535)".invalidNec
-      }
-
-    val vParseErrors: ValidationResult[Unit] =
-      if (parseErrors.isEmpty) ().validNec
-      else parseErrors.mkString("\n").invalidNec
-
-    val validationResult: ValidationResult[ServerConfig] =
-      (vParseErrors, vHost, vPort).mapN { (_, h, p) =>
-        ServerConfig(host = h, port = p)
-      }
-
-    validationResult.toEither.leftMap { errors =>
-      s"Configuration errors:\n${errors.toList.mkString("\n")}\n\nUsage: --host <host> --port <port>"
+    result.toEither.leftMap { errors =>
+      s"Configuration errors:\n${errors.toList.mkString("\n")}\n\nUsage: --host <host> --port <port> --secret <secret>"
     }
   }
 
   @tailrec
   private def parseArgs(
       remaining: List[String],
-      hostOpt: Option[String],
-      portOpt: Option[Int],
-      errors: List[String]
-  ): (Option[String], Option[Int], List[String]) = {
+      host: ValidationResult[Ipv4Address],
+      port: ValidationResult[Port],
+      secret: ValidationResult[String],
+      errors: ValidationResult[Unit]
+  ): ValidationResult[ServerConfig] = {
     remaining match {
-      case Nil => (hostOpt, portOpt, errors)
-      case "--host" :: host :: tail =>
-        parseArgs(tail, Some(host), portOpt, errors)
-      case "--host" :: Nil =>
-        parseArgs(Nil, hostOpt, portOpt, errors :+ "Missing value for --host")
-      case "--port" :: portStr :: tail =>
-        portStr.toIntOption match {
-          case Some(p) if p > 0 && p <= 65535 =>
-            parseArgs(tail, hostOpt, Some(p), errors)
-          case _ =>
-            parseArgs(
-              tail,
-              hostOpt,
-              portOpt,
-              errors :+ s"Invalid port: $portStr (must be 1-65535)"
-            )
+      case Nil =>
+        (host, port, secret, errors).mapN { (h, p, s, _) =>
+          ServerConfig(h, p, s)
         }
-      case "--port" :: Nil =>
-        parseArgs(Nil, hostOpt, portOpt, errors :+ "Missing value for --port")
+      case ("--host" | "-h") :: hostStr :: tail =>
+        val newHost = Ipv4Address.fromString(hostStr) match {
+          case Some(h) => h.validNec
+          case None    => s"Invalid IPv4 address: $hostStr".invalidNec
+        }
+        parseArgs(tail, newHost, port, secret, errors)
+      case ("--port" | "-p") :: portStr :: tail =>
+        val newPort = Port.fromString(portStr) match {
+          case Some(p) => p.validNec
+          case None    => s"Invalid port: $portStr (must be 1-65535)".invalidNec
+        }
+        parseArgs(tail, host, newPort, secret, errors)
+      case ("--secret" | "-s") :: secretStr :: tail =>
+        parseArgs(tail, host, port, secretStr.validNec, errors)
+      // missed value for required flag
+      case flag :: Nil if isRequiredFlag(flag) =>
+        val newError = s"Missing value for $flag".invalidNec[Unit]
+        parseArgs(Nil, host, port, secret, errors.productR(newError))
       case unknown :: tail =>
-        parseArgs(
-          tail,
-          hostOpt,
-          portOpt,
-          errors :+ s"Unknown argument: $unknown"
-        )
+        val newError = s"Unknown argument: $unknown".invalidNec[Unit]
+        parseArgs(tail, host, port, secret, errors.productR(newError))
     }
   }
 
+  private def isRequiredFlag(flag: String): Boolean =
+    Set("--host", "-h", "--port", "-p", "--secret", "-s").contains(flag)
 }
