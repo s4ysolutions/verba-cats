@@ -29,12 +29,12 @@ curl -X POST http://localhost:8080/translation \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-secret-token" \
   -d '{
-    "sourceText": "Hello world",
-    "sourceLang": "english",
-    "targetLang": "russian",
-    "mode": "translate",
-    "provider": "openai",
-    "quality": "optimal"
+    "text": "London is the capital",
+    "from": "english",
+    "to": "russian",
+    "mode": "translate", # explain | auto
+    "provider": "openai", # google
+    "quality": "optimal", # fast | deep
   }'
 ```
 
