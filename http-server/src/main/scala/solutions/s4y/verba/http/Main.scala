@@ -4,7 +4,7 @@ import cats.effect.*
 import cats.implicits.*
 import org.http4s.*
 import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.server.middleware.Logger as RequestLogger
+import org.http4s.server.middleware.{EntityLimiter, Logger as RequestLogger}
 import scribe.cats.LoggerExtras
 import solutions.s4y.verba.adapters.{GeminiRepository, OpenAIRepository}
 import solutions.s4y.verba.http.endpoints.translation.translationEndpoint
@@ -29,13 +29,18 @@ object Main extends IOApp {
           translationEndpoint(translatorService)
         )
 
+        val limitedRoutes: HttpRoutes[IO] = EntityLimiter.httpRoutes[IO](
+          httpRoutes = authenticatedRoutes,
+          limit = 512L
+        )
+
         val translationApp: HttpApp[IO] =
           RequestLogger.httpApp(
             logHeaders = true,
             logBody = false,
             redactHeadersWhen = _ => false,
             logAction = Some((msg: String) => httpLogger.info(msg))
-          )(authenticatedRoutes.orNotFound)
+          )(limitedRoutes.orNotFound)
 
         httpLogger.info(
           s"Starting server on ${config.host}:${config.port}"
