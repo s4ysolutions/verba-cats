@@ -35,7 +35,7 @@ class GeminiRepository extends TranslationRepository:
           case TranslationQuality.Optimal  => modelOptimal
           case TranslationQuality.Thinking => modelThinking
 
-        val prompt = Prompt.derive(request)
+        val prompt = request.prompt.value
 
         val url = Uri.unsafeFromString(
           s"$baseUrl/$modelName:generateContent?key=$apiKey"

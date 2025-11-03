@@ -30,7 +30,7 @@ class TranslatorService(
       attemptNumber: Int
   ): IO[Either[TranslationError, String]] =
     effect.flatMap {
-      case Right(result) => IO.pure(Right(result))
+      case Right(result) => IO.pure(Right(cleanupResult(result)))
       case Left(TranslationError.Api(ApiError.TemporaryUnavailable))
           if attemptNumber < maxRetries =>
         val delay = baseRetryDelay * attemptNumber
@@ -38,3 +38,13 @@ class TranslatorService(
       case Left(error) => IO.pure(Left(error))
     }
   end retryEffect
+
+  private def cleanupResult(str: String): String =
+    val leftTrimmed =
+      str.dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
+    leftTrimmed.reverse
+      .dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
+      .reverse
+
+  private val extraTrimChars: Set[Char] =
+    Set('"', '«', '»', '‘', '’', '“', '”')

@@ -36,7 +36,7 @@ class OpenAIRepository extends TranslationRepository:
           case TranslationQuality.Optimal  => modelOptimal
           case TranslationQuality.Thinking => modelThinking
 
-        val prompt = Prompt.derive(request)
+        val prompt = request.prompt.value
 
         val bodyJson: Json = Json.obj(
           "model" -> Json.fromString(modelName),

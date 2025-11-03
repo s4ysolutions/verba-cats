@@ -2,10 +2,13 @@ package solutions.s4y.verba.domain.vo
 
 import solutions.s4y.verba.domain.vo.TranslationMode.Auto
 
+case class Prompt(value: String)
+
 object Prompt:
 
   private object Sanity:
-    private val extraTrimChars: Set[Char] = Set('"', '«', '»')
+    private val extraTrimChars: Set[Char] =
+      Set('"', '«', '»', '‘', '’', '“', '”', '.', ',', ';', ':')
 
     def clean(s: String): String =
       if s == null then ""
@@ -22,8 +25,12 @@ object Prompt:
 
         trimBothEnds(withoutSoftHyphen)
 
-  def derive(from: TranslationRequest): String =
-    val raw = from.sourceText
+  def apply(
+      raw: String,
+      mode: TranslationMode,
+      sourceLang: String,
+      targetLang: String
+  ): Prompt =
 
     val cleanedText =
       // Apple book annoyingly adds "Excerpt From" at the end of copied text
@@ -39,18 +46,18 @@ object Prompt:
       if cleanedText.isEmpty then 0
       else cleanedText.split("\\s+").count(_.length > 2)
 
-    val mode: TranslationMode =
-      if from.mode == TranslationMode.Auto then
+    val modeActual: TranslationMode =
+      if mode == TranslationMode.Auto then
         if wordCount > 2 then TranslationMode.TranslateSentence
         else TranslationMode.ExplainWords
-      else from.mode
+      else mode
 
-    //noinspection NotImplementedCode
-    val prompt = mode match
+    // noinspection NotImplementedCode
+    val prompt = modeActual match
       case TranslationMode.TranslateSentence =>
-        s"Translation only (no extra) ${from.sourceLang} to ${from.targetLang}: $cleanedText"
+        s"Translate from ${sourceLang} to ${targetLang}.Output: only the translated text\n\n$cleanedText"
       case TranslationMode.ExplainWords =>
-        s"Explain in ${from.targetLang} language (only explanations no extra) the words of ${from.sourceLang}: $cleanedText"
+        s"Explain in ${targetLang} the meaning of the following ${sourceLang} words\n\n$cleanedText"
       case Auto => ???
 
-    prompt
+    Prompt(prompt)

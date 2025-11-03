@@ -8,7 +8,8 @@ import solutions.s4y.verba.domain.errors.{
 }
 
 final case class TranslationRequest private (
-    sourceText: String,
+    // sourceText: String,
+    prompt: Prompt,
     sourceLang: String,
     targetLang: String,
     mode: TranslationMode,
@@ -85,10 +86,12 @@ object TranslationRequest:
     val validationResult: ValidationResult[TranslationRequest] =
       (vText, vSourceLang, vTargetLang, vMode, vProvider, vQuality)
         .mapN { (t, s, ta, m, p, q) =>
-          TranslationRequest(t, s, ta, m, p, q)
+          TranslationRequest(Prompt(t, m, s, ta), s, ta, m, p, q)
         }
 
-    validationResult.toEither.leftMap(errs => TranslationError.RequestValidation(errs))
+    validationResult.toEither.leftMap(errs =>
+      TranslationError.RequestValidation(errs)
+    )
 
   def apply(
       options: Map[String, String]

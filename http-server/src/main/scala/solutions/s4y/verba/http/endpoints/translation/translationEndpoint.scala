@@ -34,7 +34,9 @@ def translationEndpoint(translationService: TranslatorService): HttpRoutes[IO] =
     } yield translation
 
     result.value.flatMap {
-      case Right(translation) => Ok(translation)
-      case Left(errorMsg)     => BadRequest(errorMsg)
+      case Right(translation) =>
+        Ok(translation)
+      case Left(errorMsg)     =>
+        BadRequest(errorMsg)
     }
   }
