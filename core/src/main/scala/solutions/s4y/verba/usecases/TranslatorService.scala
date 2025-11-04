@@ -2,7 +2,12 @@ package solutions.s4y.verba.usecases
 
 import cats.effect.{IO, Temporal}
 import solutions.s4y.verba.domain.errors.{ApiError, TranslationError}
-import solutions.s4y.verba.domain.vo.{TranslationProvider, TranslationRequest}
+import solutions.s4y.verba.domain.vo.{
+  TranslationMode,
+  TranslationProvider,
+  TranslationQuality,
+  TranslationRequest
+}
 import solutions.s4y.verba.ports.driven.TranslationRepository
 
 import scala.concurrent.duration.*
@@ -24,6 +29,34 @@ class TranslatorService(
 
     retryEffect(translationEffect, attemptNumber = 1)
   end translate
+
+  def modesSupported: IO[Either[Nothing, Set[TranslationMode]]] =
+    IO.pure(
+      Right(
+        Set(
+          TranslationMode.TranslateSentence,
+          TranslationMode.ExplainWords,
+          TranslationMode.Auto
+        )
+      )
+    )
+  end modesSupported
+
+  def providersSupported: IO[Either[Nothing, Set[TranslationProvider]]] =
+    IO.pure(Right(Set(TranslationProvider.OpenAI, TranslationProvider.Gemini)))
+  end providersSupported
+
+  def qualitiesSupported: IO[Either[Nothing, Set[TranslationQuality]]] =
+    IO.pure(
+      Right(
+        Set(
+          TranslationQuality.Fast,
+          TranslationQuality.Optimal,
+          TranslationQuality.Thinking
+        )
+      )
+    )
+  end qualitiesSupported
 
   private def retryEffect(
       effect: IO[Either[TranslationError, String]],

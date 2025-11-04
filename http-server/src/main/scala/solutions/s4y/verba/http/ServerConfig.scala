@@ -1,10 +1,8 @@
 package solutions.s4y.verba.http
 
-import cats.data.ValidatedNec
 import cats.syntax.all.*
 import com.comcast.ip4s.{Ipv4Address, Port}
-
-import scala.annotation.tailrec
+import com.monovore.decline.*
 
 final case class ServerConfig(
     host: Ipv4Address,
@@ -13,59 +11,64 @@ final case class ServerConfig(
 )
 
 object ServerConfig {
-  private type ValidationResult[A] = ValidatedNec[String, A]
-
-  def fromArgs(args: List[String]): Either[String, ServerConfig] = {
-    val result = parseArgs(
-      args,
-      Ipv4Address.fromBytes(0, 0, 0, 0).validNec,
-      Port.fromInt(8080).get.validNec,
-      "Secret is required".invalidNec,
-      ().validNec
+  private val hostOpt = Opts
+    .option[String]("host", help = "Host address to bind to", short = "h")
+    .mapValidated { hostStr =>
+      Ipv4Address.fromString(hostStr) match {
+        case Some(addr) => addr.valid
+        case None       => s"Invalid IPv4 address: $hostStr".invalidNel
+      }
+    }
+    .withDefault(Ipv4Address.fromBytes(0, 0, 0, 0))
+    .orElse(
+      Opts
+        .env[String]("VERBA_HOST", help = "Host address from environment")
+        .mapValidated { hostStr =>
+          Ipv4Address.fromString(hostStr) match {
+            case Some(addr) => addr.valid
+            case None       => s"Invalid IPv4 address: $hostStr".invalidNel
+          }
+        }
     )
 
-    result.toEither.leftMap { errors =>
-      s"Configuration errors:\n${errors.toList.mkString("\n")}\n\nUsage: --host <host> --port <port> --secret <secret>"
+  private val portOpt = Opts
+    .option[Int]("port", help = "Port to bind to", short = "p")
+    .mapValidated { portInt =>
+      Port.fromInt(portInt) match {
+        case Some(p) => p.valid
+        case None    => s"Invalid port: $portInt (must be 1-65535)".invalidNel
+      }
     }
-  }
+    .withDefault(Port.fromInt(8080).get)
+    .orElse(
+      Opts
+        .env[Int]("VERBA_PORT", help = "Port from environment")
+        .mapValidated { portInt =>
+          Port.fromInt(portInt) match {
+            case Some(p) => p.valid
+            case None => s"Invalid port: $portInt (must be 1-65535)".invalidNel
+          }
+        }
+    )
 
-  @tailrec
-  private def parseArgs(
-      remaining: List[String],
-      host: ValidationResult[Ipv4Address],
-      port: ValidationResult[Port],
-      secret: ValidationResult[String],
-      errors: ValidationResult[Unit]
-  ): ValidationResult[ServerConfig] = {
-    remaining match {
-      case Nil =>
-        (host, port, secret, errors).mapN { (h, p, s, _) =>
-          ServerConfig(h, p, s)
-        }
-      case ("--host" | "-h") :: hostStr :: tail =>
-        val newHost = Ipv4Address.fromString(hostStr) match {
-          case Some(h) => h.validNec
-          case None    => s"Invalid IPv4 address: $hostStr".invalidNec
-        }
-        parseArgs(tail, newHost, port, secret, errors)
-      case ("--port" | "-p") :: portStr :: tail =>
-        val newPort = Port.fromString(portStr) match {
-          case Some(p) => p.validNec
-          case None    => s"Invalid port: $portStr (must be 1-65535)".invalidNec
-        }
-        parseArgs(tail, host, newPort, secret, errors)
-      case ("--secret" | "-s") :: secretStr :: tail =>
-        parseArgs(tail, host, port, secretStr.validNec, errors)
-      // missed value for required flag
-      case flag :: Nil if isRequiredFlag(flag) =>
-        val newError = s"Missing value for $flag".invalidNec[Unit]
-        parseArgs(Nil, host, port, secret, errors.productR(newError))
-      case unknown :: tail =>
-        val newError = s"Unknown argument: $unknown".invalidNec[Unit]
-        parseArgs(tail, host, port, secret, errors.productR(newError))
-    }
-  }
+  private val secretOpt =
+    Opts
+      .option[String]("secret", help = "Authentication secret", short = "s")
+      .orElse(
+        Opts.env[String](
+          "VERBA_SECRET",
+          help = "Authentication secret from environment"
+        )
+      )
 
-  private def isRequiredFlag(flag: String): Boolean =
-    Set("--host", "-h", "--port", "-p", "--secret", "-s").contains(flag)
+  private val configOpts =
+    (hostOpt, portOpt, secretOpt).mapN(ServerConfig.apply)
+
+  private val command = Command(
+    name = "verba",
+    header = "Verba HTTP Translation Server"
+  )(configOpts)
+
+  def fromArgs(args: List[String]): Either[String, ServerConfig] =
+    command.parse(args, sys.env).leftMap(_.toString)
 }
