@@ -55,9 +55,9 @@ object Prompt:
     // noinspection NotImplementedCode
     val prompt = modeActual match
       case TranslationMode.TranslateSentence =>
-        s"Translate from ${sourceLang} to ${targetLang} and provide IPA. ONLY provide the translation and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+        s"Translate from $sourceLang to $targetLang and provide IPA of $sourceLang. ONLY provide the translation and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
       case TranslationMode.ExplainWords =>
-        s"Explain in ${targetLang} the following ${sourceLang} words and provide IPA. ONLY provide the meaning and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+        s"Explain in $targetLang the following $sourceLang words and provide IPA of $sourceLang. ONLY provide the meaning and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
       case Auto => ???
 
     Prompt(prompt)
