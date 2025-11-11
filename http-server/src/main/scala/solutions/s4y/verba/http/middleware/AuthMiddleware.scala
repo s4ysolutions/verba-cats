@@ -19,29 +19,41 @@ object AuthMiddleware:
       logger.debug(
         "Authenticating request to " + s"${req.method} ${req.uri.path}"
       )
-      val authHeader =
-        req.headers.get[Authorization].map(_.credentials.renderString)
 
-      authHeader match {
-        case Some(headerValue) if checkWsse(headerValue, secret) =>
-          routes(req)
-        case Some(_) =>
-          OptionT.liftF(
-            loggerIO.warn(
-              s"Unauthorized request to ${req.method} ${req.uri.path}"
-            ) *>
-              Forbidden("Invalid authentication token")
-          )
-        case None =>
-          OptionT.liftF(
-            loggerIO.warn(
-              s"Missing authentication header for ${req.method} ${req.uri.path}"
-            ) *>
-              Forbidden("Missing authentication header")
-          )
+      if isLocal(req) then
+        logger.debug("Request is from local address, skipping authentication")
+        routes(req)
+      else {
+        val authHeader =
+          req.headers.get[Authorization].map(_.credentials.renderString)
+
+        authHeader match {
+          case Some(headerValue) if checkWsse(headerValue, secret) =>
+            routes(req)
+          case Some(_) =>
+            OptionT.liftF(
+              loggerIO.warn(
+                s"Unauthorized request to ${req.method} ${req.uri.path}"
+              ) *>
+                Forbidden("Invalid authentication token")
+            )
+          case None =>
+            OptionT.liftF(
+              loggerIO.warn(
+                s"Missing authentication header for ${req.method} ${req.uri.path}"
+              ) *>
+                Forbidden("Missing authentication header")
+            )
+        }
       }
   }
   end apply
+
+  private def isLocal(req: Request[IO]): Boolean =
+    req.remote.exists { sa =>
+      val s = sa.toString
+      s.contains("127.0.0.1") || s.contains("::1") || s.contains("localhost")
+    }
 
   // Purge nonces older than 20 seconds (double the time window for safety)
   private def purgeOldNonces(now: Long): Unit =
