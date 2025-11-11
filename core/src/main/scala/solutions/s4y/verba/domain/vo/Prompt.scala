@@ -29,7 +29,8 @@ object Prompt:
       raw: String,
       mode: TranslationMode,
       sourceLang: String,
-      targetLang: String
+      targetLang: String,
+      ipa: Boolean
   ): Prompt =
 
     val cleanedText =
@@ -55,9 +56,15 @@ object Prompt:
     // noinspection NotImplementedCode
     val prompt = modeActual match
       case TranslationMode.TranslateSentence =>
-        s"Translate from $sourceLang to $targetLang and provide IPA of $sourceLang. ONLY provide the translation and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+        if ipa then
+          s"Translate from $sourceLang to $targetLang and provide IPA of $sourceLang. ONLY provide the translation and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+        else
+          s"Translate from $sourceLang to $targetLang. ONLY provide the translation. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
       case TranslationMode.ExplainWords =>
-        s"Explain thoroughly, like a dictionary article, in $targetLang the meaning of the following $sourceLang words and provide IPA of $sourceLang. ONLY provide the meaning and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+        if ipa then
+          s"Explain thoroughly, like a dictionary article, meaning of the following $sourceLang words and provide IPA of $sourceLang. Use $targetLang for the explanation. ONLY provide the meaning and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+        else
+          s"Explain thoroughly, like a dictionary article, meaning of the following $sourceLang words. Use $targetLang for the explanation. ONLY provide the meaning. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
       case Auto => ???
 
     Prompt(prompt)

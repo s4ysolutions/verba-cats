@@ -14,16 +14,18 @@ final case class TranslationRequest private (
     targetLang: String,
     mode: TranslationMode,
     provider: TranslationProvider,
-    quality: TranslationQuality
+    quality: TranslationQuality,
+    ipa: Boolean
 )
 
 object TranslationRequest:
-  val textArg = "text"
-  val fromArg = "from"
-  val toArg = "to"
-  val modeArg = "mode"
-  val providerArg = "provider"
-  val qualityArg = "quality"
+  private val textArg = "text"
+  private val fromArg = "from"
+  private val toArg = "to"
+  private val modeArg = "mode"
+  private val providerArg = "provider"
+  private val qualityArg = "quality"
+  private val ipaArg = "ipa"
 
   type ValidationResult[A] = ValidatedNec[RequestValidationError, A]
 
@@ -33,7 +35,8 @@ object TranslationRequest:
       targetLang: Option[String],
       mode: Option[String],
       provider: Option[String],
-      quality: Option[String]
+      quality: Option[String],
+      ipa: Option[Boolean]
   ): Either[TranslationError.RequestValidation, TranslationRequest] =
 
     val vText: ValidationResult[String] = sourceText
@@ -83,10 +86,19 @@ object TranslationRequest:
     val vQuality: ValidationResult[TranslationQuality] =
       TranslationQuality.fromString(quality.getOrElse("optimal"))
 
+    val ipaBool = ipa.getOrElse(false)
     val validationResult: ValidationResult[TranslationRequest] =
       (vText, vSourceLang, vTargetLang, vMode, vProvider, vQuality)
-        .mapN { (t, s, ta, m, p, q) =>
-          TranslationRequest(Prompt(t, m, s, ta), s, ta, m, p, q)
+        .mapN { (text, srcL, trgtL, mode, provider, quality) =>
+          TranslationRequest(
+            Prompt(text, mode, srcL, trgtL, ipaBool),
+            srcL,
+            trgtL,
+            mode,
+            provider,
+            quality,
+            ipaBool
+          )
         }
 
     validationResult.toEither.leftMap(errs =>
@@ -102,5 +114,6 @@ object TranslationRequest:
       targetLang = options.get(toArg),
       mode = options.get(modeArg),
       provider = options.get(providerArg),
-      quality = options.get(qualityArg)
+      quality = options.get(qualityArg),
+      ipa = options.get(ipaArg).map(s => s.toLowerCase == "true")
     )

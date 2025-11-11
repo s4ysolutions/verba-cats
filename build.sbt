@@ -10,6 +10,7 @@ ThisBuild / organization := "solutions.s4y"
 
 val http4sVersion = "0.23.32"
 val scribeVersion = "3.13.2" // fixed version for Scala native compatibility
+val logbackClassicVersion = "1.5.21"
 
 lazy val core = crossProject(JVMPlatform, NativePlatform)
   .crossType(
@@ -44,10 +45,14 @@ lazy val cli = crossProject(JVMPlatform, NativePlatform)
         .withMode(Mode.releaseSize) // releaseFast, releaseSize, releaseFull
         .withGC(GC.none) // commix, immix, boehm, none
       // .withMultithreading(true) // Enable parallelism on Native
-    }
+    },
+    libraryDependencies ++= Seq(
+      // test framework for cli
+      "org.scalameta" %% "munit" % "1.2.1" % Test
+    )
   )
   .jvmSettings(
-    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.5.20",
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % logbackClassicVersion,
     assemblyMergeStrategy := {
       case "module-info.class"      => MergeStrategy.discard
       case PathList("META-INF", _*) =>
@@ -83,7 +88,7 @@ lazy val httpServer = crossProject(JVMPlatform, NativePlatform)
   )
   .jvmSettings(
     Compile / mainClass := Some("solutions.s4y.verba.http.Main"),
-    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.5.20",
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % logbackClassicVersion,
     assemblyMergeStrategy := {
       case "module-info.class"      => MergeStrategy.discard
       case PathList("META-INF", _*) =>

@@ -6,5 +6,6 @@ case class TranslationRequestDto(
     to: String,
     mode: Option[String] = None,
     provider: Option[String] = None,
-    quality: Option[String] = None
+    quality: Option[String] = None,
+    ipa: Option[Boolean] = None
 )

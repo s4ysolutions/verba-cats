@@ -30,7 +30,8 @@ def translationEndpoint(
           targetLang = Some(dto.to),
           mode = dto.mode,
           provider = dto.provider,
-          quality = dto.quality
+          quality = dto.quality,
+          ipa = dto.ipa
         ).leftMap(err => err.message)
       )
       _ <- EitherT.right[String](
