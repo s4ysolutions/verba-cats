@@ -7,6 +7,7 @@ enum ApiError:
   case DecodingFailed(data: String, err: Throwable)
   case Networking(err: Throwable)
   case TemporaryUnavailable
+  case Timeout
   case Unexpected(info: String)
 
   def message: String = this match
@@ -16,9 +17,10 @@ enum ApiError:
       s"Failed to encode data: $data. Error: ${err.getMessage}"
     case DecodingFailed(data, err) =>
       s"Failed to decode data: $data. Error: ${err.getMessage}"
-    case Networking(err)  => s"Networking error: ${err.getMessage}"
-    case TemporaryUnavailable      => "Service is temporarily unavailable"
-    case Unexpected(info) => s"Unexpected error: $info"
+    case Networking(err)      => s"Networking error: ${err.getMessage}"
+    case TemporaryUnavailable => "Service is temporarily unavailable"
+    case Timeout              => "Request timed out"
+    case Unexpected(info)     => s"Unexpected error: $info"
 
   def cause: Option[Throwable] = this match
     case EncodingFailed(_, err) => Some(err)
