@@ -10,7 +10,7 @@ import solutions.s4y.verba.domain.errors.{
 final case class TranslationRequest private (
     // sourceText: String,
     prompt: Prompt,
-    sourceLang: String,
+    sourceLang: Option[String],
     targetLang: String,
     mode: TranslationMode,
     provider: TranslationProvider,
@@ -49,18 +49,20 @@ object TranslationRequest:
         else text.validNec
       }
 
-    val vSourceLang: ValidationResult[String] = sourceLang
+    val vSourceLang: ValidationResult[Option[String]] = sourceLang
       .map(_.trim)
       .fold(
-        RequestValidationError.EmptyString(fromArg).invalidNec
+        (None: Option[String]).validNec
+        //RequestValidationError.EmptyString(fromArg).invalidNec
       ) { lang =>
         if (lang.isEmpty)
-          RequestValidationError.EmptyString(fromArg).invalidNec
+            (None: Option[String]).validNec
+          // RequestValidationError.EmptyString(fromArg).invalidNec
         else if (lang.length > 12)
           RequestValidationError.LangTooLong(lang).invalidNec
         else if (lang.length <= 2)
           RequestValidationError.LangTooShort(lang).invalidNec
-        else lang.validNec
+        else Some(lang).validNec
       }
 
     val vTargetLang: ValidationResult[String] = targetLang

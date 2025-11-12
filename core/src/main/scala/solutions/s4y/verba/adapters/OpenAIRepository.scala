@@ -14,10 +14,9 @@ import solutions.s4y.verba.ports.driven.TranslationRepository
 class OpenAIRepository extends TranslationRepository:
   private val url = "https://api.openai.com/v1/chat/completions"
 
-  // private val modelFast: String = "gpt-5-nano"
-  private val modelFast: String = "gpt-5-nano"
-  private val modelOptimal: String = "gpt-5-mini"
-  private val modelThinking: String = "gpt-5"
+  private val modelFast: String = "gpt-4.1-nano"
+  private val modelOptimal: String = "gpt-4.1-mini"
+  private val modelThinking: String = "gpt-4.1"
 
   def translate(
       request: TranslationRequest
