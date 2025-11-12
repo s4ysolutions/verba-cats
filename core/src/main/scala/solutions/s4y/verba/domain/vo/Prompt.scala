@@ -11,32 +11,35 @@ object Prompt:
       Set('"', '«', '»', '‘', '’', '“', '”', '.', ',', ';', ':')
 
     def clean(s: String): String =
-      if s == null then ""
-      else
-        val withoutSoftHyphen = s.replace("\u00AD", "")
+      val withoutSoftHyphen = s.replace("\u00AD", "")
 
-        // drop leading chars that are whitespace/newline or in extraTrimChars
-        def trimBothEnds(str: String): String =
-          val leftTrimmed =
-            str.dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
-          leftTrimmed.reverse
-            .dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
-            .reverse
+      // drop leading chars that are whitespace/newline or in extraTrimChars
+      def trimBothEnds(str: String): String =
+        val leftTrimmed =
+          str.dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
+        leftTrimmed.reverse
+          .dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
+          .reverse
 
-        trimBothEnds(withoutSoftHyphen)
+      trimBothEnds(withoutSoftHyphen)
 
   def apply(
       raw: String,
       mode: TranslationMode,
-      sourceLang: String,
+      sourceLang: Option[String],
       targetLang: String,
       ipa: Boolean
   ): Prompt =
 
     val cleanedText =
-      // Apple book annoyingly adds "Excerpt From" at the end of copied text
-      val idx = raw.indexOf("Excerpt From")
-      val before = if idx >= 0 then raw.substring(0, idx) else raw
+      val before =
+        Option(raw)
+          .map { r =>
+            // Apple book annoyingly adds "Excerpt From" at the end of copied text
+            val idx = r.indexOf("Excerpt From")
+            if idx >= 0 then r.substring(0, idx) else r
+          }
+          .getOrElse("")
       Sanity
         .clean(before)
         // normalize internal runs of whitespace to single spaces for nicer prompts
@@ -53,18 +56,47 @@ object Prompt:
         else TranslationMode.ExplainWords
       else mode
 
-    // noinspection NotImplementedCode
     val prompt = modeActual match
       case TranslationMode.TranslateSentence =>
-        if ipa then
-          s"Translate from $sourceLang to $targetLang and provide IPA of $sourceLang. ONLY provide the translation and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
-        else
-          s"Translate from $sourceLang to $targetLang. ONLY provide the translation. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+        if ipa then {
+          val addon =
+            s"and provide IPA of the translated word. ONLY provide the translation and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+          sourceLang match {
+            case Some(srcLang) =>
+              s"Translate from $srcLang to $targetLang $addon"
+            case None =>
+              s"Translate to $targetLang $addon"
+          }
+        } else {
+          val addon =
+            s"ONLY provide the translation. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+          sourceLang match {
+            case Some(srcLang) =>
+              s"Translate from $srcLang to $targetLang. $addon"
+            case None =>
+              s"Translate to $targetLang. $addon"
+          }
+        }
       case TranslationMode.ExplainWords =>
-        if ipa then
-          s"Explain thoroughly, like a dictionary article, meaning of the following $sourceLang words and provide IPA of $sourceLang. Use $targetLang for the explanation. ONLY provide the meaning and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
-        else
-          s"Explain thoroughly, like a dictionary article, meaning of the following $sourceLang words. Use $targetLang for the explanation. ONLY provide the meaning. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+        if ipa then {
+          val addon =
+            s"using $targetLang and provide IPA of the explained word. ONLY provide the meaning and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+          sourceLang match {
+            case Some(srcLang) =>
+              s"Explain thoroughly, like a dictionary article, meaning of the following $srcLang words $addon"
+            case None =>
+              s"Explain thoroughly, like a dictionary article, meaning of the following words $addon"
+          }
+        } else {
+          val addon =
+            s"using $targetLang. ONLY provide the meaning. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+          sourceLang match {
+            case Some(srcLang) =>
+              s"Explain thoroughly, like a dictionary article, meaning of the following $srcLang words $addon"
+            case None =>
+              s"Explain thoroughly, like a dictionary article, meaning of the following words $addon."
+          }
+        }
       case Auto => ???
 
     Prompt(prompt)
