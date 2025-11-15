@@ -80,21 +80,21 @@ object Prompt:
       case TranslationMode.ExplainWords =>
         if ipa then {
           val addon =
-            s"using $targetLang and provide IPA of the explained word. ONLY provide the meaning and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+            s"and provide IPA of the explained word. ONLY provide the meaning and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
           sourceLang match {
             case Some(srcLang) =>
-              s"Explain thoroughly, like a dictionary article, meaning of the following $srcLang words $addon"
+              s"Explain in $targetLang thoroughly, like a dictionary article, meaning of the following $srcLang words $addon"
             case None =>
-              s"Explain thoroughly, like a dictionary article, meaning of the following words $addon"
+              s"Explain in $targetLang thoroughly, like a dictionary article, meaning of the following words $addon"
           }
         } else {
           val addon =
-            s"using $targetLang. ONLY provide the meaning. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+            s"ONLY provide the meaning. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
           sourceLang match {
             case Some(srcLang) =>
-              s"Explain thoroughly, like a dictionary article, meaning of the following $srcLang words $addon"
+              s"Explain in $targetLang thoroughly, like a dictionary article, meaning of the following $srcLang words $addon"
             case None =>
-              s"Explain thoroughly, like a dictionary article, meaning of the following words $addon."
+              s"Explain in $targetLang thoroughly, like a dictionary article, meaning of the following words $addon."
           }
         }
       case Auto => ???
