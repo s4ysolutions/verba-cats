@@ -26,7 +26,7 @@ def translationEndpoint(
       translationReq <- EitherT.fromEither[IO](
         TranslationRequest(
           sourceText = Some(dto.text),
-          sourceLang = Some(dto.from),
+          sourceLang = dto.from,
           targetLang = Some(dto.to),
           mode = dto.mode,
           provider = dto.provider,
