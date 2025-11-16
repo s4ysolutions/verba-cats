@@ -7,7 +7,11 @@ import org.http4s.*
 import org.http4s.circe.*
 import org.http4s.ember.client.EmberClientBuilder
 import solutions.s4y.verba.domain.errors.{ApiError, TranslationError}
-import solutions.s4y.verba.domain.vo.{TranslationQuality, TranslationRequest}
+import solutions.s4y.verba.domain.vo.{
+  TranslationQuality,
+  TranslationRequest,
+  TranslationResponse
+}
 import solutions.s4y.verba.ports.driven.TranslationRepository
 
 class GeminiRepository extends TranslationRepository:
@@ -19,7 +23,7 @@ class GeminiRepository extends TranslationRepository:
 
   def translate(
       request: TranslationRequest
-  ): IO[Either[TranslationError, String]] =
+  ): IO[Either[TranslationError, TranslationResponse]] =
     APIConfig.geminiAPIKey match
       case None => IO.pure(Left(TranslationError.Api(ApiError.InvalidKey)))
       case Some(apiKey) =>
@@ -76,25 +80,49 @@ class GeminiRepository extends TranslationRepository:
                           )
                         )
                       case Right(json) =>
-                        val textOpt = for
-                          obj <- json.asObject
-                          candidatesJson <- obj("candidates")
-                          candidatesArr <- candidatesJson.asArray
-                          first <- candidatesArr.headOption
-                          firstObj <- first.asObject
-                          contentJson <- firstObj("content")
-                          contentObj <- contentJson.asObject
-                          partsJson <- contentObj("parts")
-                          partsArr <- partsJson.asArray
-                          firstPart <- partsArr.headOption
-                          firstPartObj <- firstPart.asObject
-                          textJson <- firstPartObj("text")
-                          textStr <- textJson.asString
-                        yield textStr
+                        val obj = json.asObject
+                        val textOpt = obj
+                          .flatMap(_("candidates"))
+                          .flatMap(_.asArray)
+                          .flatMap(_.headOption)
+                          .flatMap(_.asObject)
+                          .flatMap(_("content"))
+                          .flatMap(_.asObject)
+                          .flatMap(_("parts"))
+                          .flatMap(_.asArray)
+                          .map(partsArr =>
+                            partsArr
+                              .flatMap(_.asObject)
+                              .flatMap(_("text"))
+                              .flatMap(_.asString)
+                              .mkString("")
+                          )
 
                         textOpt match
-                          case Some(text) => IO.pure(Right(text.trim))
-                          case None       =>
+                          case Some(text) =>
+                            val usageMetadata = obj
+                              .flatMap(_("usageMetadata"))
+                              .flatMap(_.asObject)
+                            val promptTokens = usageMetadata
+                              .flatMap(_("promptTokenCount"))
+                              .flatMap(_.asNumber)
+                              .flatMap(_.toInt)
+                              .getOrElse(-1)
+                            val candidatesTokens = usageMetadata
+                              .flatMap(_("candidatesTokenCount"))
+                              .flatMap(_.asNumber)
+                              .flatMap(_.toInt)
+                              .getOrElse(-1)
+                            IO.pure(
+                              Right(
+                                TranslationResponse(
+                                  text.trim,
+                                  promptTokens,
+                                  candidatesTokens
+                                )
+                              )
+                            )
+                          case None =>
                             IO.pure(
                               Left(
                                 TranslationError.Api(

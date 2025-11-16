@@ -2,12 +2,7 @@ package solutions.s4y.verba.usecases
 
 import cats.effect.{IO, Temporal}
 import solutions.s4y.verba.domain.errors.{ApiError, TranslationError}
-import solutions.s4y.verba.domain.vo.{
-  TranslationMode,
-  TranslationProvider,
-  TranslationQuality,
-  TranslationRequest
-}
+import solutions.s4y.verba.domain.vo.*
 import solutions.s4y.verba.ports.driven.TranslationRepository
 
 import scala.concurrent.duration.*
@@ -20,7 +15,7 @@ class TranslatorService(
 ):
   def translate(
       request: TranslationRequest
-  ): IO[Either[TranslationError, String]] =
+  ): IO[Either[TranslationError, TranslationResponse]] =
     val repo = request.provider match
       case TranslationProvider.OpenAI => openAiRepository
       case TranslationProvider.Gemini => geminiRepository
@@ -59,9 +54,9 @@ class TranslatorService(
   end qualitiesSupported
 
   private def retryEffect(
-      effect: IO[Either[TranslationError, String]],
+      effect: IO[Either[TranslationError, TranslationResponse]],
       attemptNumber: Int
-  ): IO[Either[TranslationError, String]] =
+  ): IO[Either[TranslationError, TranslationResponse]] =
     effect.flatMap {
       case Right(result) => IO.pure(Right(cleanupResult(result)))
       case Left(TranslationError.Api(ApiError.TemporaryUnavailable))
@@ -72,12 +67,19 @@ class TranslatorService(
     }
   end retryEffect
 
-  private def cleanupResult(str: String): String =
+  private def cleanupResult(
+      response: TranslationResponse
+  ): TranslationResponse =
     val leftTrimmed =
-      str.dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
-    leftTrimmed.reverse
-      .dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
-      .reverse
+      response.text.dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
+
+    TranslationResponse(
+      leftTrimmed.reverse
+        .dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
+        .reverse,
+      response.promptTokenCount,
+      response.textTokenCount
+    )
 
   private val extraTrimChars: Set[Char] =
     Set('"', '«', '»', '‘', '’', '“', '”')

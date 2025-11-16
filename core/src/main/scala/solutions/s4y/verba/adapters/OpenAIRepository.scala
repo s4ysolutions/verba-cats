@@ -8,7 +8,11 @@ import org.http4s.circe.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.typelevel.ci.CIStringSyntax
 import solutions.s4y.verba.domain.errors.{ApiError, TranslationError}
-import solutions.s4y.verba.domain.vo.{TranslationQuality, TranslationRequest}
+import solutions.s4y.verba.domain.vo.{
+  TranslationQuality,
+  TranslationRequest,
+  TranslationResponse
+}
 import solutions.s4y.verba.ports.driven.TranslationRepository
 
 class OpenAIRepository extends TranslationRepository:
@@ -20,7 +24,7 @@ class OpenAIRepository extends TranslationRepository:
 
   def translate(
       request: TranslationRequest
-  ): IO[Either[TranslationError, String]] =
+  ): IO[Either[TranslationError, TranslationResponse]] =
     APIConfig.openAIAPIKey match
       case None => IO.pure(Left(TranslationError.Api(ApiError.InvalidKey)))
       case Some(apiKey) =>
@@ -84,8 +88,27 @@ class OpenAIRepository extends TranslationRepository:
                         yield contentStr
 
                         contentOpt match
-                          case Some(content) => IO.pure(Right(content.trim))
-                          case None          =>
+                          case Some(content) =>
+                            val usage = for
+                              obj <- json.asObject
+                              usageJson <- obj("usage")
+                              usageObj <- usageJson.asObject
+                            yield usageObj
+
+                            val promptTokens = usage
+                              .flatMap(_("prompt_tokens"))
+                              .flatMap(_.asNumber)
+                              .flatMap(_.toInt)
+                              .getOrElse(-1)
+
+                            val completionTokens = usage
+                              .flatMap(_("completion_tokens"))
+                              .flatMap(_.asNumber)
+                              .flatMap(_.toInt)
+                              .getOrElse(-1)
+
+                            IO.pure( Right(TranslationResponse(content.trim, promptTokens, completionTokens)) )
+                          case None =>
                             IO.pure(
                               Left(
                                 TranslationError.Api(
