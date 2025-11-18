@@ -1,7 +1,6 @@
 package solutions.s4y.verba.domain
 
 import munit.FunSuite
-import cats.data.Validated
 import cats.syntax.all.*
 import solutions.s4y.verba.domain.errors.RequestValidationError
 import solutions.s4y.verba.domain.vo.{TranslationMode, TranslationProviders, TranslationQuality, TranslationRequest}
@@ -10,48 +9,49 @@ class TranslationRequestSuite extends FunSuite {
 
   test("apply returns valid request for valid inputs") {
     val res = TranslationRequest(
-      sourceText = "Hello",
-      sourceLang = "eng",
-      targetLang = "fra",
-      mode = "translate",
-      provider = "openai",
-      quality = "optimal"
+      sourceText = Some("Hello"),
+      sourceLang = Some("eng"),
+      targetLang = Some("fra"),
+      mode = Some("translate"),
+      provider = Some("openai"),
+      quality = Some("optimal"),
+      ipa = Some(false)
     )
 
     res match {
-      case Validated.Valid(req) =>
-        assertEquals(req.sourceText, "Hello")
-        assertEquals(req.sourceLang, "eng")
+      case Right(req) =>
+        assertEquals(req.sourceLang, Some("eng"))
         assertEquals(req.targetLang, "fra")
         assertEquals(req.mode, TranslationMode.TranslateSentence)
         assertEquals(req.provider, TranslationProviders.OpenAI)
         assertEquals(req.quality, TranslationQuality.Optimal)
 
-      case Validated.Invalid(errs) =>
-        fail(s"Expected valid request but got errors: ${errs.toList.map(_.message).mkString(", ")}")
+      case Left(err) =>
+        fail(s"Expected valid request but got errors: ${err.message}")
     }
   }
 
   test("apply accumulates multiple validation errors") {
     val res = TranslationRequest(
-      sourceText = "",
-      sourceLang = "e",       // too short
-      targetLang = "x",       // too short
-      mode = "badmode",       // invalid
-      provider = "unknown",   // invalid
-      quality = "badquality"  // invalid
+      sourceText = Some(""),
+      sourceLang = Some("e"),       // too short
+      targetLang = Some("x"),       // too short
+      mode = Some("badmode"),       // invalid
+      provider = Some("unknown"),   // invalid
+      quality = Some("badquality"), // invalid
+      ipa = Some(false)
     )
 
     res match {
-      case Validated.Valid(_) =>
+      case Right(_) =>
         fail("Expected invalid result due to multiple validation errors")
 
-      case Validated.Invalid(errs) =>
-        val list = errs.toList
+      case Left(err) =>
+        val list = err.errors.toList
 
         assert(list.exists {
-          case RequestValidationError.EmptyString => true
-          case _                                   => false
+          case RequestValidationError.EmptyString(_) => true
+          case _                                      => false
         }, "expected EmptyString error")
 
         assert(list.exists {

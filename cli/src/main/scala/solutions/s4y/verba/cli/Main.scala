@@ -25,10 +25,10 @@ object Main extends IOApp:
 
     val resultIO: EitherT[IO, TranslationError, String] = for {
       req: TranslationRequest <- EitherT.fromEither[IO](request)
-      res: String <- EitherT(
+      res <- EitherT(
         translator.translate(req)
       )
-    } yield res
+    } yield res.translated
 
     val resultIOValue: IO[Either[TranslationError, String]] = resultIO.value
 
