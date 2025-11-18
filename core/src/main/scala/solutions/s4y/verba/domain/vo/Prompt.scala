@@ -13,7 +13,6 @@ object Prompt:
     def clean(s: String): String =
       val withoutSoftHyphen = s.replace("\u00AD", "")
 
-      // drop leading chars that are whitespace/newline or in extraTrimChars
       def trimBothEnds(str: String): String =
         val leftTrimmed =
           str.dropWhile(c => c.isWhitespace || extraTrimChars.contains(c))
@@ -35,14 +34,12 @@ object Prompt:
       val before =
         Option(raw)
           .map { r =>
-            // Apple book annoyingly adds "Excerpt From" at the end of copied text
             val idx = r.indexOf("Excerpt From")
             if idx >= 0 then r.substring(0, idx) else r
           }
           .getOrElse("")
       Sanity
         .clean(before)
-        // normalize internal runs of whitespace to single spaces for nicer prompts
         .replaceAll("\\s+", " ")
         .trim
 
@@ -57,50 +54,100 @@ object Prompt:
       else mode
 
     val prompt = modeActual match
+
+      // --------------------------------------------------------------
+      // TRANSLATION MODE
+      // --------------------------------------------------------------
       case TranslationMode.TranslateSentence =>
-        if ipa then {
-          val ipaLang = sourceLang match {
-            case Some(srcLang) => srcLang + " words"
-            case None          => "source (translated) language words"
-          }
-          val addon =
-            s"and provide IPA of $ipaLang. ONLY provide the translation and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
-          sourceLang match {
-            case Some(srcLang) =>
-              s"Translate from $srcLang to $targetLang $addon"
+
+        val translatePrompt =
+          sourceLang match
+            case Some(src) =>
+              s"""Translate the text from $src to $targetLang."""
             case None =>
-              s"Translate to $targetLang $addon"
-          }
-        } else {
-          val addon =
-            s"ONLY provide the translation. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
-          sourceLang match {
-            case Some(srcLang) =>
-              s"Translate from $srcLang to $targetLang. $addon"
-            case None =>
-              s"Translate to $targetLang. $addon"
-          }
-        }
+              s"""First, DETECT the source language of the text.
+Second, TRANSLATE it into $targetLang."""
+
+        val ipaPrompt =
+          if ipa then
+            sourceLang match
+              case Some(src) =>
+                s"""Then provide IPA ONLY for the SOURCE-LANGUAGE words that appear in the INPUT text ($src).
+NEVER provide IPA for the translation."""
+              case None =>
+                s"""Then provide IPA ONLY for the SOURCE-LANGUAGE words (as detected in step 1).
+NEVER provide IPA for the translation."""
+          else s"""Do NOT provide IPA."""
+
+        val formatPrompt =
+          if ipa then s"""Output format (STRICT):
+<IPA of source-language words>
+<Translation>"""
+          else s"""Output ONLY the translation."""
+
+        val limitPrompt =
+          s"""Do not include explanations, comments, or additional text."""
+
+        s"$translatePrompt\n$ipaPrompt\n$formatPrompt\n$limitPrompt\n\n$cleanedText"
+
+      // --------------------------------------------------------------
+      // EXPLAIN MODE (one or two words)
+      // --------------------------------------------------------------
       case TranslationMode.ExplainWords =>
-        if ipa then {
-          val addon =
-            s"and provide IPA of the explained word. ONLY provide the meaning and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
-          sourceLang match {
-            case Some(srcLang) =>
-              s"Explain in $targetLang thoroughly, like a dictionary article, meaning of the following $srcLang words $addon"
+        if ipa then
+          sourceLang match
+            case Some(src) =>
+              s"""
+Explain the meaning of the following $src word(s) in $targetLang, as in a dictionary article.
+Then give IPA ONLY for the SOURCE-LANGUAGE word(s).
+Do NOT give IPA for the explanation in $targetLang.
+
+Output format (STRICT):
+<IPA of source word(s)>
+<Explanation in $targetLang>
+
+Do not include any introductory, conversational, or descriptive text.
+
+$cleanedText
+"""
             case None =>
-              s"Explain in $targetLang thoroughly, like a dictionary article, meaning of the following words $addon"
-          }
-        } else {
-          val addon =
-            s"ONLY provide the meaning. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
-          sourceLang match {
-            case Some(srcLang) =>
-              s"Explain in $targetLang thoroughly, like a dictionary article, meaning of the following $srcLang words $addon"
+              s"""
+First, DETECT the language of the following word(s).
+Second, explain their meaning in $targetLang, as in a dictionary article.
+Then give IPA ONLY for the ORIGINAL SOURCE-LANGUAGE word(s).
+Do NOT give IPA for the explanation in $targetLang.
+
+Output format (STRICT):
+<IPA of source word(s)>
+<Explanation>
+
+Do not include any introductory, conversational, or descriptive text.
+
+$cleanedText
+"""
+        else
+          sourceLang match
+            case Some(src) =>
+              s"""
+Explain the meaning of the following $src word(s) in $targetLang, as in a dictionary article.
+Provide ONLY the explanation. No IPA.
+
+Do not include any introductory, conversational, or descriptive text.
+
+$cleanedText
+"""
             case None =>
-              s"Explain in $targetLang thoroughly, like a dictionary article, meaning of the following words $addon."
-          }
-        }
-      case Auto => ???
+              s"""
+First, DETECT the language of the following word(s).
+Second, explain their meaning in $targetLang, as in a dictionary article.
+Provide ONLY the explanation. No IPA.
+
+Do not include any introductory, conversational, or descriptive text.
+
+$cleanedText
+"""
+
+      case Auto =>
+        "ERROR: Auto mode should have been resolved earlier."
 
     Prompt(prompt)
