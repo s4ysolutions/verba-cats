@@ -59,8 +59,12 @@ object Prompt:
     val prompt = modeActual match
       case TranslationMode.TranslateSentence =>
         if ipa then {
+          val ipaLang = sourceLang match {
+            case Some(srcLang) => srcLang + " words"
+            case None          => "source (translated) language words"
+          }
           val addon =
-            s"and provide IPA of the translated word. ONLY provide the translation and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
+            s"and provide IPA of $ipaLang. ONLY provide the translation and transcription. Do not include any introductory, conversational, or descriptive text.\n\n$cleanedText"
           sourceLang match {
             case Some(srcLang) =>
               s"Translate from $srcLang to $targetLang $addon"
